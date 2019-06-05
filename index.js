@@ -37,7 +37,8 @@ server.post('/api/login', (req, res) => {
   Users.findBy({ username })
     .first()
     .then(user => {
-      if (user) {
+      const isValidPass = bcrypt.compareSync(password, user.password)
+      if (user && isValidPass) {
         res.status(200).json({ message: `Welcome ${user.username}!` });
       } else {
         res.status(401).json({ message: 'Invalid Credentials' });
@@ -48,7 +49,29 @@ server.post('/api/login', (req, res) => {
     });
 });
 
-server.get('/api/users', (req, res) => {
+function authorize (req, res, next) {
+  const username = req.headers['x-username'];
+  const password = req.headers['x-password'];
+
+  if (!username || !password){
+    return res.status(401).json({message: "Invalid 1"})
+  }
+
+  Users.findBy({username})
+    .first()
+    .then(user => {
+      if (user && bcrypt.compareSync(password, user.password)){
+        next()
+      } else {
+        res.status(401).json({message: "Invalid 2"})
+      }
+    })
+    .catch(err => {
+      res.status(500).json(err);
+    })
+}
+
+server.get('/api/users', authorize, (req, res) => {
   Users.find()
     .then(users => {
       res.json(users);
